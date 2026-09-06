@@ -39,7 +39,7 @@ function initWebSocket() {
     console.log('connected');
     recordBtn.disabled = false;
     connectBtn.disabled = true;
-    connectBtn.innerHTML = 'Connected!';
+    connectBtn.innerHTML = '已连接';
   });
 
   // Connection closed
@@ -47,7 +47,7 @@ function initWebSocket() {
     console.log('disconnected');
     recordBtn.disabled = true;
     connectBtn.disabled = false;
-    connectBtn.innerHTML = 'Click me to connect!';
+    connectBtn.innerHTML = '连接服务器';
   });
 
   // Listen for messages
@@ -204,7 +204,7 @@ if (navigator.mediaDevices.getUserMedia) {
       recordBtn.disabled = false;
 
       const clipName =
-          prompt('Enter a name for your sound clip?', 'My unnamed clip');
+          prompt('给这段录音起个名字？', '未命名录音');
 
       const clipContainer = document.createElement('article');
       const clipLabel = document.createElement('p');
@@ -212,11 +212,11 @@ if (navigator.mediaDevices.getUserMedia) {
       const deleteButton = document.createElement('button');
       clipContainer.classList.add('clip');
       audio.setAttribute('controls', '');
-      deleteButton.textContent = 'Delete';
+      deleteButton.textContent = '删除';
       deleteButton.className = 'delete';
 
       if (clipName === null) {
-        clipLabel.textContent = 'My unnamed clip';
+        clipLabel.textContent = '未命名录音';
       } else {
         clipLabel.textContent = clipName;
       }
@@ -243,7 +243,7 @@ if (navigator.mediaDevices.getUserMedia) {
 
       clipLabel.onclick = function() {
         const existingName = clipLabel.textContent;
-        const newClipName = prompt('Enter a new name for your sound clip?');
+        const newClipName = prompt('重新命名这段录音？');
         if (newClipName === null) {
           clipLabel.textContent = existingName;
         } else {
@@ -260,7 +260,7 @@ if (navigator.mediaDevices.getUserMedia) {
   navigator.mediaDevices.getUserMedia(constraints).then(onSuccess, onError);
 } else {
   console.log('getUserMedia not supported on your browser!');
-  alert('getUserMedia not supported on your browser!');
+  alert('当前浏览器不支持麦克风录音');
 }
 
 function visualize(stream) {

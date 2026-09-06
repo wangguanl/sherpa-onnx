@@ -36,7 +36,7 @@ function initWebSocket() {
     console.log('connected');
     uploadBtn.disabled = false;
     connectBtn.disabled = true;
-    connectBtn.innerHTML = 'Connected!';
+    connectBtn.innerHTML = '已连接';
   });
 
   // Connection closed
@@ -44,7 +44,7 @@ function initWebSocket() {
     console.log('disconnected');
     uploadBtn.disabled = true;
     connectBtn.disabled = false;
-    connectBtn.innerHTML = 'Click me to connect!';
+    connectBtn.innerHTML = '连接服务器';
   });
 
   // Listen for messages

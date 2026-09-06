@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <!-- Required meta tags -->
   <meta charset="utf-8"></meta>
@@ -14,7 +14,7 @@
 
   <script src="./js/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
 
-  <title>Next-gen Kaldi demo (Upload file for recognition)</title>
+  <title>上传文件识别 - sherpa-onnx</title>
 </head>
 
 
@@ -26,29 +26,29 @@
     });
   </script>
 
-  <h3>Recognition from a selected file</h3>
+  <h3>从本地文件识别</h3>
   <div class="input-group mb-1">
     <div class="input-group-prepend">
-      <button class="btn btn-block btn-primary" type="button" id="connect">Click me to connect</button>
+      <button class="btn btn-block btn-primary" type="button" id="connect">连接服务器</button>
     </div>
     <span class="input-group-text" id="ws-protocol">ws://</span>
-    <input type="text" id="server-ip" class="form-control" placeholder="Sherpa-onnx server IP, e.g., localhost" aria-label="sherpa-onnx server IP">
+    <input type="text" id="server-ip" class="form-control" placeholder="服务器地址，例如 localhost" aria-label="服务器地址">
     <span class="input-group-text">:</span>
-    <input type="text" id="server-port" class="form-control" placeholder="Sherpa-onnx server port, e.g., 6006" aria-label="sherpa-onnx server port">
+    <input type="text" id="server-port" class="form-control" placeholder="端口，例如 6007" aria-label="服务器端口">
   </div>
 
   <form>
     <div class="mb-3">
-      <label for="file" class="form-label">Select file</label>
+      <label for="file" class="form-label">选择音频文件（wav）</label>
       <input class="form-control" type="file" id="file" accept=".wav" onchange="onFileChange()" disabled="true"></input>
     </div>
 
     <div class="mb-3">
-      <label for="results" class="form-label">Recognition results</label>
+      <label for="results" class="form-label">识别结果</label>
       <textarea class="form-control" id="results" rows="8"></textarea>
     </div>
 
-    <button class="btn btn-primary btn-block" id="clear">Clear results</button>
+    <button class="btn btn-primary btn-block" id="clear">清空结果</button>
   </form>
 
   <!-- Optional JavaScript -->
