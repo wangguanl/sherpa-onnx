@@ -300,6 +300,14 @@ typedef struct SherpaOnnxOnlineCtcFstDecoderConfig {
   int32_t max_active;
 } SherpaOnnxOnlineCtcFstDecoderConfig;
 
+/** @brief Configuration for HLG/FST-based offline CTC decoding. */
+typedef struct SherpaOnnxOfflineCtcFstDecoderConfig {
+  /** Path to the decoding graph. */
+  const char *graph;
+  /** Decoder max-active setting. 0 means 3000. */
+  int32_t max_active;
+} SherpaOnnxOfflineCtcFstDecoderConfig;
+
 /** @brief Configuration for homophone replacement. */
 typedef struct SherpaOnnxHomophoneReplacerConfig {
   /** Unused legacy field kept for ABI compatibility. */
@@ -1200,6 +1208,9 @@ typedef struct SherpaOnnxOfflineRecognizerConfig {
 
   /** Optional homophone replacement configuration. */
   SherpaOnnxHomophoneReplacerConfig hr;
+
+  /** Optional CTC+FST decoder configuration. */
+  SherpaOnnxOfflineCtcFstDecoderConfig ctc_fst_decoder_config;
 } SherpaOnnxOfflineRecognizerConfig;
 
 /** @brief Non-streaming recognizer handle. */
@@ -3398,6 +3409,15 @@ SHERPA_ONNX_API int32_t SherpaOnnxSpeakerEmbeddingManagerNumSpeakers(
     const SherpaOnnxSpeakerEmbeddingManager *p);
 
 /**
+ * @brief Return the embedding dimension.
+ *
+ * @param p A pointer returned by SherpaOnnxCreateSpeakerEmbeddingManager().
+ * @return Embedding dimension.
+ */
+SHERPA_ONNX_API int32_t SherpaOnnxSpeakerEmbeddingManagerDim(
+    const SherpaOnnxSpeakerEmbeddingManager *p);
+
+/**
  * @brief Return all enrolled speaker names.
  *
  * The returned array is NULL-terminated. If no speakers are enrolled, the
@@ -3420,6 +3440,30 @@ SherpaOnnxSpeakerEmbeddingManagerGetAllSpeakers(
  */
 SHERPA_ONNX_API void SherpaOnnxSpeakerEmbeddingManagerFreeAllSpeakers(
     const char *const *names);
+
+/**
+ * @brief Return a copy of the embedding of a speaker.
+ *
+ * The returned vector has `SherpaOnnxSpeakerEmbeddingManagerDim(p)` elements.
+ * Free it with SherpaOnnxSpeakerEmbeddingManagerDestroyEmbedding().
+ *
+ * @param p A pointer returned by SherpaOnnxCreateSpeakerEmbeddingManager().
+ * @param name Speaker name.
+ * @return A newly allocated embedding vector. Returns NULL if the speaker does
+ *         not exist.
+ */
+SHERPA_ONNX_API const float *SherpaOnnxSpeakerEmbeddingManagerGetEmbedding(
+    const SherpaOnnxSpeakerEmbeddingManager *p, const char *name);
+
+/**
+ * @brief Free an embedding returned by
+ * SherpaOnnxSpeakerEmbeddingManagerGetEmbedding().
+ *
+ * @param v A pointer returned by
+ *          SherpaOnnxSpeakerEmbeddingManagerGetEmbedding().
+ */
+SHERPA_ONNX_API void SherpaOnnxSpeakerEmbeddingManagerDestroyEmbedding(
+    const float *v);
 
 // ============================================================
 // For audio tagging
@@ -3875,6 +3919,8 @@ typedef struct SherpaOnnxFastClusteringConfig {
   int32_t num_clusters;
   /** Distance threshold used when the number of speakers is unknown. */
   float threshold;
+  /** When non-zero, per-segment confidence values are computed. */
+  int32_t compute_confidence;
 } SherpaOnnxFastClusteringConfig;
 
 /**
@@ -3965,6 +4011,12 @@ typedef struct SherpaOnnxOfflineSpeakerDiarizationSegment {
   float end;
   /** Speaker label, typically an integer cluster ID. */
   int32_t speaker;
+  /**
+   * Per-segment confidence in [-1, 1] (higher is more confident), or -2 if
+   * unavailable (compute_confidence disabled, or the score could not be
+   * computed for this segment).
+   */
+  float confidence;
 } SherpaOnnxOfflineSpeakerDiarizationSegment;
 
 /**

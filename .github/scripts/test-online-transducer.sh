@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 set -e
-
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 log() {
   # This function is from espnet
   local fname=${BASH_SOURCE[1]##*/}
@@ -19,9 +20,7 @@ log "------------------------------------------------------------"
 log "Run NeMo transducer (English)"
 log "------------------------------------------------------------"
 repo_url=https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-80ms.tar.bz2
-curl -SL -O $repo_url
-tar xvf sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-80ms.tar.bz2
-rm sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-80ms.tar.bz2
+download_and_extract $repo_url
 repo=sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-80ms
 
 log "Start testing ${repo_url}"
@@ -52,6 +51,55 @@ time $EXE \
   $repo/test_wavs/1.wav \
   $repo/test_wavs/8k.wav
 
+log "Test NeMo transducer with modified_beam_search (no hotwords)"
+
+time $EXE \
+  --tokens=$repo/tokens.txt \
+  --encoder=$repo/encoder.onnx \
+  --decoder=$repo/decoder.onnx \
+  --joiner=$repo/joiner.onnx \
+  --num-threads=2 \
+  --decoding-method=modified_beam_search \
+  $repo/test_wavs/0.wav
+
+log "Test NeMo transducer with modified_beam_search and hotwords"
+
+# The model does not ship a bpe.vocab; derive one from tokens.txt so that
+# hotwords can be given as words. Equal scores make the encoder use the
+# longest match.
+awk '{print $1 "\t-1.0"}' $repo/tokens.txt > $repo/bpe.vocab
+
+cat > $repo/hotwords.txt << EOF
+the
+and
+that
+EOF
+
+time $EXE \
+  --tokens=$repo/tokens.txt \
+  --encoder=$repo/encoder.onnx \
+  --decoder=$repo/decoder.onnx \
+  --joiner=$repo/joiner.onnx \
+  --num-threads=2 \
+  --decoding-method=modified_beam_search \
+  --modeling-unit=bpe \
+  --bpe-vocab=$repo/bpe.vocab \
+  --hotwords-file=$repo/hotwords.txt \
+  --hotwords-score=1.5 \
+  $repo/test_wavs/0.wav > $repo/hotwords.log 2>&1
+
+cat $repo/hotwords.log
+
+case "$EXE" in
+  *decode-file-c-api*)
+    # prints only the text
+    ;;
+  *)
+    # the matched hotwords must carry the hotwords score in context_scores
+    grep -q '"context_scores": \[[^]]*1.500000' $repo/hotwords.log
+    ;;
+esac
+
 rm -rf $repo
 
 log "------------------------------------------------------------"
@@ -59,9 +107,7 @@ log "Run LSTM transducer (English)"
 log "------------------------------------------------------------"
 
 repo_url=https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-lstm-en-2023-02-17.tar.bz2
-curl -SL -O $repo_url
-tar xvf sherpa-onnx-lstm-en-2023-02-17.tar.bz2
-rm sherpa-onnx-lstm-en-2023-02-17.tar.bz2
+download_and_extract $repo_url
 repo=sherpa-onnx-lstm-en-2023-02-17
 
 log "Start testing ${repo_url}"
@@ -99,9 +145,7 @@ log "Run LSTM transducer (Chinese)"
 log "------------------------------------------------------------"
 
 repo_url=https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-lstm-zh-2023-02-20.tar.bz2
-curl -SL -O $repo_url
-tar xvf sherpa-onnx-lstm-zh-2023-02-20.tar.bz2
-rm sherpa-onnx-lstm-zh-2023-02-20.tar.bz2
+download_and_extract $repo_url
 repo=sherpa-onnx-lstm-zh-2023-02-20
 
 log "Start testing ${repo_url}"
@@ -139,9 +183,7 @@ log "Run streaming Zipformer transducer (English)"
 log "------------------------------------------------------------"
 
 repo_url=https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-2023-02-21.tar.bz2
-curl -SL -O $repo_url
-tar xvf sherpa-onnx-streaming-zipformer-en-2023-02-21.tar.bz2
-rm sherpa-onnx-streaming-zipformer-en-2023-02-21.tar.bz2
+download_and_extract $repo_url
 repo=sherpa-onnx-streaming-zipformer-en-2023-02-21
 
 log "Start testing ${repo_url}"
@@ -234,9 +276,7 @@ log "Run streaming Zipformer transducer (Bilingual, Chinese + English)"
 log "------------------------------------------------------------"
 
 repo_url=https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2
-curl -SL -O $repo_url
-tar xvf sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2
-rm sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2
+download_and_extract $repo_url
 repo=sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20
 
 log "Start testing ${repo_url}"
@@ -297,9 +337,7 @@ log "Run streaming Conformer transducer (English)"
 log "------------------------------------------------------------"
 
 repo_url=https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-conformer-en-2023-05-09.tar.bz2
-curl -SL -O $repo_url
-tar xvf sherpa-onnx-streaming-conformer-en-2023-05-09.tar.bz2
-rm sherpa-onnx-streaming-conformer-en-2023-05-09.tar.bz2
+download_and_extract $repo_url
 repo=sherpa-onnx-streaming-conformer-en-2023-05-09
 
 log "Start testing ${repo_url}"

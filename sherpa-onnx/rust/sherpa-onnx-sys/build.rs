@@ -61,7 +61,7 @@ fn try_main() -> Result<(), DynError> {
 
     println!("cargo:rustc-link-search=native={}", lib_dir.display());
 
-    if link_mode == LinkMode::Shared && matches!(target_os.as_str(), "linux" | "macos" | "ios") {
+    if link_mode == LinkMode::Shared && matches!(target_os.as_str(), "linux" | "macos" | "ios" | "android") {
         println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_dir.display());
         emit_relative_rpath(&target_os);
         copy_unix_runtime_libs(&lib_dir, &target_os)?;
@@ -641,7 +641,7 @@ fn copy_xcframework_to_tauri_project(
     archive_stem: Option<&str>,
 ) -> Result<(), DynError> {
     // lib_dir is something like
-    //   target/.../sherpa-onnx-prebuilt/sherpa-onnx-v1.13.7-ios-shared-onnxruntime-static/lib
+    //   target/.../sherpa-onnx-prebuilt/sherpa-onnx-v1.13.8-ios-shared-onnxruntime-static/lib
     // The xcframework sits next to lib/:
     //   .../sherpa-onnx.xcframework/
     let extracted_dir = lib_dir.parent().unwrap_or(lib_dir);
@@ -719,10 +719,10 @@ fn copy_dir_recursively(src: &Path, dst: &Path) -> Result<(), DynError> {
         if ty.is_dir() {
             copy_dir_recursively(&entry.path(), &dest_path)?;
         } else if ty.is_symlink() {
-            let target = fs::read_link(entry.path())?;
             #[cfg(unix)]
             {
                 use std::os::unix::fs::symlink;
+                let target = fs::read_link(entry.path())?;
                 symlink(&target, &dest_path)?;
             }
             #[cfg(not(unix))]

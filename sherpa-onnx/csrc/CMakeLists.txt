@@ -120,6 +120,7 @@ set(sources
   online-transducer-model-config.cc
   online-transducer-model.cc
   online-transducer-modified-beam-search-decoder.cc
+  online-transducer-modified-beam-search-nemo-decoder.cc
   online-transducer-nemo-parakeet-unified-model.cc
   online-transducer-nemo-model.cc
   online-wenet-ctc-model-config.cc
@@ -830,6 +831,10 @@ if(SHERPA_ONNX_ENABLE_TESTS)
     context-graph-test.cc
     lfr-test.cc
     math-test.cc
+    offline-recognizer-canary-impl-test.cc
+    offline-recognizer-cohere-transcribe-impl-test.cc
+    offline-recognizer-funasr-nano-impl-test.cc
+    offline-recognizer-moonshine-v2-impl-test.cc
     offline-recognizer-qwen3-asr-impl-test.cc
     offline-recognizer-shared-rng-test.cc
     offline-whisper-timestamp-rules-test.cc
