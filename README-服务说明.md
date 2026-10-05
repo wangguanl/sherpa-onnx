@@ -38,7 +38,7 @@ pwsh -NoProfile -File .\start.ps1 -Service cli
 
 ## 四、前提条件
 
-- Python 虚拟环境：`E:\Pro2\sherpa-onnx\.venv`（已装 `sherpa-onnx`、`sounddevice`、`websockets` 12.0 等）
+- Python 虚拟环境：`E:\AI\local-voice\sherpa-onnx\.venv`（已装 `sherpa-onnx`、`sounddevice`、`websockets` 12.0 等）
 - 模型目录：`E:\huggingface_cache`
 
 ## 五、常见问题

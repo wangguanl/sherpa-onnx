@@ -5,13 +5,22 @@
 var socket;
 var recognition_text = [];
 
+function setStatus(text) {
+  const el = document.getElementById('status');
+  if (el) el.textContent = text;
+  const box = document.getElementById('results');
+  if (box && !box.value && text) {
+    box.placeholder = text;
+  }
+}
+
 function getDisplayResult() {
   let i = 0;
   let ans = '';
   for (let s in recognition_text) {
-    if (recognition_text[s] == '') continue;
-
-    ans += '' + i + ': ' + recognition_text[s] + '\n';
+    const t = recognition_text[s];
+    if (!t) continue;
+    ans += '' + i + ': ' + t + '\n';
     i += 1;
   }
   return ans;
@@ -40,6 +49,7 @@ function initWebSocket() {
     recordBtn.disabled = false;
     connectBtn.disabled = true;
     connectBtn.innerHTML = '已连接';
+    setStatus('已连接，可以开始录音');
   });
 
   // Connection closed
@@ -48,6 +58,7 @@ function initWebSocket() {
     recordBtn.disabled = true;
     connectBtn.disabled = false;
     connectBtn.innerHTML = '连接服务器';
+    setStatus('连接已断开，请重新连接');
   });
 
   // Listen for messages
@@ -59,8 +70,10 @@ function initWebSocket() {
       recognition_text.push(message.text);
     }
     let text_area = document.getElementById('results');
-    text_area.value = getDisplayResult();
+    const shown = getDisplayResult();
+    text_area.value = shown || '识别中…（已收到服务器回包）';
     text_area.scrollTop = text_area.scrollHeight;  // auto scroll
+    setStatus(shown ? '识别中' : '已收到回包，文本还是空的');
     console.log('Received message: ', event.data);
   });
 }
@@ -72,8 +85,10 @@ window.onload = (event) => {
   if (window.location.protocol == 'https:') {
     document.getElementById('ws-protocol').textContent = 'wss://';
   }
-  serverIpInput.value = window.location.hostname;
-  serverPortInput.value = window.location.port;
+  const host = window.location.hostname;
+  serverIpInput.value = (host === '127.0.0.1') ? 'localhost' : host;
+  serverPortInput.value = window.location.port || '6006';
+  initWebSocket();
 };
 
 const serverIpInput = document.getElementById('server-ip');
@@ -94,6 +109,8 @@ let audioCtx;
 const canvasCtx = canvas.getContext('2d');
 let mediaStream;
 let analyser;
+let rawStream = null;
+let useSystemAudio = false;
 
 let expectedSampleRate = 16000;
 let recordSampleRate;  // the sampleRate of the microphone
@@ -117,10 +134,14 @@ connectBtn.onclick = function() {
 if (navigator.mediaDevices.getUserMedia) {
   console.log('getUserMedia supported.');
 
-  // see https://w3c.github.io/mediacapture-main/#dom-mediadevices-getusermedia
-  const constraints = {audio: true};
-
   let onSuccess = function(stream) {
+    if (rawStream && rawStream !== stream) {
+      rawStream.getTracks().forEach(function(t) { t.stop(); });
+    }
+    rawStream = stream;
+    try { if (mediaStream) mediaStream.disconnect(); } catch (e) {}
+    try { if (recorder) recorder.disconnect(); } catch (e) {}
+
     if (!audioCtx) {
       audioCtx = new AudioContext();
     }
@@ -147,8 +168,15 @@ if (navigator.mediaDevices.getUserMedia) {
     console.log(recorder);
 
     recorder.onaudioprocess = function(e) {
-      let samples = new Float32Array(e.inputBuffer.getChannelData(0))
-      samples = downsampleBuffer(samples, expectedSampleRate);
+      const ch0 = e.inputBuffer.getChannelData(0);
+      let mixed = new Float32Array(ch0.length);
+      if (e.inputBuffer.numberOfChannels > 1) {
+        const ch1 = e.inputBuffer.getChannelData(1);
+        for (let i = 0; i < ch0.length; ++i) mixed[i] = (ch0[i] + ch1[i]) * 0.5;
+      } else {
+        mixed.set(ch0);
+      }
+      let samples = downsampleBuffer(mixed, expectedSampleRate);
 
       let buf = new Int16Array(samples.length);
       for (var i = 0; i < samples.length; ++i) {
@@ -162,7 +190,10 @@ if (navigator.mediaDevices.getUserMedia) {
         buf[i] = s * 32767;
       }
 
-      socket.send(samples);
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        return;
+      }
+      socket.send(samples.buffer);
 
       leftchannel.push(buf);
       recordingLength += bufferSize;
@@ -172,9 +203,20 @@ if (navigator.mediaDevices.getUserMedia) {
     mediaStream.connect(analyser);
 
     recordBtn.onclick = function() {
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        alert('还没连上识别服务。请先点「连接服务器」，按钮变成「已连接」后再录音。页面必须是 http://localhost:6006/streaming_record.html');
+        return;
+      }
+      setStatus('正在录音并识别…');
       mediaStream.connect(recorder);
       mediaStream.connect(analyser);
-      recorder.connect(audioCtx.destination);
+      // ScriptProcessor 必须接到 destination 才会回调；增益 0 避免系统声音回放啸叫
+      if (!window._sherpaSilentGain) {
+        window._sherpaSilentGain = audioCtx.createGain();
+        window._sherpaSilentGain.gain.value = 0;
+        window._sherpaSilentGain.connect(audioCtx.destination);
+      }
+      recorder.connect(window._sherpaSilentGain);
 
       console.log('recorder started');
       recordBtn.style.background = 'red';
@@ -257,7 +299,86 @@ if (navigator.mediaDevices.getUserMedia) {
     console.log('The following error occurred: ' + err);
   };
 
-  navigator.mediaDevices.getUserMedia(constraints).then(onSuccess, onError);
+  function micConstraints() {
+    const sel = document.getElementById('audio_device');
+    const id = sel && sel.value;
+    const audio = {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false
+    };
+    if (id) audio.deviceId = {exact: id};
+    return {audio: audio};
+  }
+
+  function refreshDeviceList() {
+    const sel = document.getElementById('audio_device');
+    if (!sel || !navigator.mediaDevices.enumerateDevices) return Promise.resolve();
+    return navigator.mediaDevices.enumerateDevices().then(function(devs) {
+      const inputs = devs.filter(function(d) { return d.kind === 'audioinput'; });
+      const prev = sel.value;
+      sel.innerHTML = '';
+      inputs.forEach(function(d) {
+        const opt = document.createElement('option');
+        opt.value = d.deviceId;
+        opt.textContent = d.label || ('输入设备 ' + String(d.deviceId).slice(0, 8));
+        sel.appendChild(opt);
+      });
+      const named = function(re) {
+        return inputs.find(function(d) { return re.test(d.label || ''); });
+      };
+      const vm = named(/voicemeeter\s+out\s+b1\b/i)
+        || named(/voicemeeter output/i)
+        || named(/voicemeeter\s+out\s+b\d/i)
+        || named(/voicemeeter/i);
+      if (prev && inputs.some(function(d) { return d.deviceId === prev; })) {
+        sel.value = prev;
+      } else if (vm) {
+        sel.value = vm.deviceId;
+      }
+    });
+  }
+
+  function requestMic() {
+    useSystemAudio = false;
+    navigator.mediaDevices.getUserMedia(micConstraints()).then(function(stream) {
+      onSuccess(stream);
+      const before = (document.getElementById('audio_device') || {}).value;
+      refreshDeviceList().then(function() {
+        const after = (document.getElementById('audio_device') || {}).value;
+        if (after && after !== before) requestMic();
+      });
+    }, onError);
+  }
+
+  function requestSystemAudio() {
+    if (!navigator.mediaDevices.getDisplayMedia) {
+      alert('当前浏览器不支持捕获系统声音，请用 Chrome 或 Edge。');
+      return;
+    }
+    navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: {echoCancellation: false, noiseSuppression: false, autoGainControl: false}
+    }).then(function(stream) {
+      stream.getVideoTracks().forEach(function(t) { t.stop(); });
+      if (stream.getAudioTracks().length === 0) {
+        stream.getTracks().forEach(function(t) { t.stop(); });
+        alert('没有捕获到声音。请勾选「共享系统音频」，或共享一个带声音的标签页。');
+        return;
+      }
+      useSystemAudio = true;
+      onSuccess(stream);
+    }).catch(onError);
+  }
+
+  const micBtn = document.getElementById('audio_mic');
+  const systemBtn = document.getElementById('audio_system');
+  const deviceSel = document.getElementById('audio_device');
+  if (micBtn) micBtn.onclick = requestMic;
+  if (systemBtn) systemBtn.onclick = requestSystemAudio;
+  if (deviceSel) deviceSel.onchange = requestMic;
+
+  requestMic();
 } else {
   console.log('getUserMedia not supported on your browser!');
   alert('当前浏览器不支持麦克风录音');

@@ -27,6 +27,7 @@
   </script>
 
   <h3>实时录音识别</h3>
+  <p class="text-muted small" id="status">尚未连接识别服务</p>
   <div class="container">
     <div class="input-group mb-1">
       <div class="input-group-prepend">
@@ -43,6 +44,19 @@
         <canvas id="canvas" height="60px" display="block" margin-bottom="0.5rem"></canvas>
       </div>
     </div>
+    <div class="form-group mb-2">
+      <label for="audio_device">输入设备</label>
+      <select class="form-control" id="audio_device"></select>
+    </div>
+    <div class="row mb-2">
+       <div class="col">
+        <button class="btn btn-outline-primary btn-block" id="audio_mic">使用所选设备</button>
+       </div>
+       <div class="col">
+        <button class="btn btn-outline-secondary btn-block" id="audio_system">屏幕共享系统声</button>
+       </div>
+    </div>
+    <p class="text-muted small">有 VoiceMeeter 时：Windows 播放设备选 VoiceMeeter Input，本页选 Voicemeeter Out B1，即可识别系统声音。</p>
     <div class="row">
        <div class="col">
         <button class="btn btn-primary btn-block" id="streaming_record">开始录音</button>

@@ -675,18 +675,15 @@ class NonStreamingServer:
 
             if path == "/streaming_record.html":
                 response = r"""
-<!doctype html><html><head>
-<title>Speech recognition with next-gen Kaldi</title><body>
-<h2>Only
-<a href="/upload.html">/upload.html</a>
-and
-<a href="/offline_record.html">/offline_record.html</a>
-is available for the non-streaming server.<h2>
-<br/>
-<br/>
-Go back to <a href="/upload.html">/upload.html</a>
-or <a href="/offline_record.html">/offline_record.html</a>
-</body></head></html>
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8">
+<title>流式识别需要单独启动</title></head><body>
+<h2>当前是离线识别服务，不提供流式页面</h2>
+<p>流式识别是另一个进程，请另开终端执行：</p>
+<pre>pwsh -NoProfile -File .\start.ps1 -Service streaming</pre>
+<p>然后打开 <a href="http://127.0.0.1:6006/streaming_record.html">http://127.0.0.1:6006/streaming_record.html</a></p>
+<p>返回：<a href="/offline_record.html">离线识别</a> · <a href="/upload.html">上传文件</a></p>
+</body></html>
 """
                 found = True
                 mime_type = "text/html"

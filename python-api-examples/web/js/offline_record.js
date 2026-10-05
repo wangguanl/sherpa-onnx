@@ -83,6 +83,8 @@ let audioCtx;
 const canvasCtx = canvas.getContext('2d');
 let mediaStream;
 let analyser;
+let rawStream = null;
+let useSystemAudio = false;
 
 let expectedSampleRate = 16000;
 let recordSampleRate;  // the sampleRate of the microphone
@@ -108,10 +110,14 @@ function send_header(n) {
 if (navigator.mediaDevices.getUserMedia) {
   console.log('getUserMedia supported.');
 
-  // see https://w3c.github.io/mediacapture-main/#dom-mediadevices-getusermedia
-  const constraints = {audio: true};
-
   let onSuccess = function(stream) {
+    if (rawStream && rawStream !== stream) {
+      rawStream.getTracks().forEach(function(t) { t.stop(); });
+    }
+    rawStream = stream;
+    try { if (mediaStream) mediaStream.disconnect(); } catch (e) {}
+    try { if (recorder) recorder.disconnect(); } catch (e) {}
+
     if (!audioCtx) {
       audioCtx = new AudioContext();
     }
@@ -159,7 +165,13 @@ if (navigator.mediaDevices.getUserMedia) {
     recordBtn.onclick = function() {
       mediaStream.connect(recorder);
       mediaStream.connect(analyser);
-      recorder.connect(audioCtx.destination);
+      // ScriptProcessor 必须接到 destination 才会回调；增益 0 避免系统声音回放啸叫
+      if (!window._sherpaSilentGain) {
+        window._sherpaSilentGain = audioCtx.createGain();
+        window._sherpaSilentGain.gain.value = 0;
+        window._sherpaSilentGain.connect(audioCtx.destination);
+      }
+      recorder.connect(window._sherpaSilentGain);
 
       console.log('recorder started');
       recordBtn.style.background = 'red';
@@ -252,7 +264,86 @@ if (navigator.mediaDevices.getUserMedia) {
     console.log('The following error occurred: ' + err);
   };
 
-  navigator.mediaDevices.getUserMedia(constraints).then(onSuccess, onError);
+  function micConstraints() {
+    const sel = document.getElementById('audio_device');
+    const id = sel && sel.value;
+    const audio = {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false
+    };
+    if (id) audio.deviceId = {exact: id};
+    return {audio: audio};
+  }
+
+  function refreshDeviceList() {
+    const sel = document.getElementById('audio_device');
+    if (!sel || !navigator.mediaDevices.enumerateDevices) return Promise.resolve();
+    return navigator.mediaDevices.enumerateDevices().then(function(devs) {
+      const inputs = devs.filter(function(d) { return d.kind === 'audioinput'; });
+      const prev = sel.value;
+      sel.innerHTML = '';
+      inputs.forEach(function(d) {
+        const opt = document.createElement('option');
+        opt.value = d.deviceId;
+        opt.textContent = d.label || ('输入设备 ' + String(d.deviceId).slice(0, 8));
+        sel.appendChild(opt);
+      });
+      const named = function(re) {
+        return inputs.find(function(d) { return re.test(d.label || ''); });
+      };
+      const vm = named(/voicemeeter\s+out\s+b1\b/i)
+        || named(/voicemeeter output/i)
+        || named(/voicemeeter\s+out\s+b\d/i)
+        || named(/voicemeeter/i);
+      if (prev && inputs.some(function(d) { return d.deviceId === prev; })) {
+        sel.value = prev;
+      } else if (vm) {
+        sel.value = vm.deviceId;
+      }
+    });
+  }
+
+  function requestMic() {
+    useSystemAudio = false;
+    navigator.mediaDevices.getUserMedia(micConstraints()).then(function(stream) {
+      onSuccess(stream);
+      const before = (document.getElementById('audio_device') || {}).value;
+      refreshDeviceList().then(function() {
+        const after = (document.getElementById('audio_device') || {}).value;
+        if (after && after !== before) requestMic();
+      });
+    }, onError);
+  }
+
+  function requestSystemAudio() {
+    if (!navigator.mediaDevices.getDisplayMedia) {
+      alert('当前浏览器不支持捕获系统声音，请用 Chrome 或 Edge。');
+      return;
+    }
+    navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: {echoCancellation: false, noiseSuppression: false, autoGainControl: false}
+    }).then(function(stream) {
+      stream.getVideoTracks().forEach(function(t) { t.stop(); });
+      if (stream.getAudioTracks().length === 0) {
+        stream.getTracks().forEach(function(t) { t.stop(); });
+        alert('没有捕获到声音。请勾选「共享系统音频」，或共享一个带声音的标签页。');
+        return;
+      }
+      useSystemAudio = true;
+      onSuccess(stream);
+    }).catch(onError);
+  }
+
+  const micBtn = document.getElementById('audio_mic');
+  const systemBtn = document.getElementById('audio_system');
+  const deviceSel = document.getElementById('audio_device');
+  if (micBtn) micBtn.onclick = requestMic;
+  if (systemBtn) systemBtn.onclick = requestSystemAudio;
+  if (deviceSel) deviceSel.onchange = requestMic;
+
+  requestMic();
 } else {
   console.log('getUserMedia not supported on your browser!');
   alert('当前浏览器不支持麦克风录音');

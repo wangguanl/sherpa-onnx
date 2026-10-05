@@ -1,7 +1,7 @@
 # 运行命令
 
 - 项目：sherpa-onnx（本地语音识别 / 合成工具库）
-- 生成时间：2026-09-06
+$12026-09-09
 - 运行方式：直接运行
 - 硬件评估：满足（结论 + 依据）
   - 官方：Python 预编译轮子默认 CPU；SenseVoice int8 约 228MB，文档示例可在 Cortex A55 单核上跑
@@ -39,10 +39,10 @@ hf download csukuangfj/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-2
 
 ## 启动
 
-- 推荐：`pwsh -NoProfile -File .\start.ps1`
-- 流式识别：`pwsh -NoProfile -File .\start.ps1 -Service streaming`
-- 官方文件识别自检：`pwsh -NoProfile -File .\start.ps1 -Service cli`
-- 等价手动命令（离线 Web 服务，默认起点 6007，占用则顺延）：
+- 推荐：`pwsh -NoProfile -File .\start.ps1`（交互菜单；默认 [1] 离线 SenseVoice Web）
+- 服务 Id：`offline` / `streaming` / `cli`
+- 自动化：`pwsh -NoProfile -File .\start.ps1 -Service streaming`
+- 等价手动命令（离线 Web，默认起点 6007）：
 
 ```powershell
 $env:Path = "E:\Programs\ffmpeg-master-latest-win64-gpl\bin;$env:Path"

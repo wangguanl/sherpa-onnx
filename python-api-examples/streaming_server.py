@@ -619,13 +619,14 @@ class StreamingServer(object):
 
             if path in ("/upload.html", "/offline_record.html"):
                 response = r"""
-<!doctype html><html><head>
-<title>Speech recognition with next-gen Kaldi</title><body>
-<h2>Only /streaming_record.html is available for the streaming server.<h2>
-<br/>
-<br/>
-Go back to <a href="/streaming_record.html">/streaming_record.html</a>
-</body></head></html>
+<!doctype html><html lang="zh-CN"><head>
+<meta charset="utf-8">
+<title>离线识别需要单独启动</title></head><body>
+<h2>当前是流式识别服务，不提供离线/上传页面</h2>
+<p>离线识别请另开终端执行 <code>pwsh -NoProfile -File .\start.ps1</code>，然后打开
+<a href="http://127.0.0.1:6007/offline_record.html">http://127.0.0.1:6007/offline_record.html</a></p>
+<p>返回：<a href="/streaming_record.html">流式识别</a></p>
+</body></html>
 """
                 found = True
                 mime_type = "text/html"
@@ -797,7 +798,16 @@ Go back to <a href="/streaming_record.html">/streaming_record.html</a>
         if message == "Done":
             return None
 
-        return np.frombuffer(message, dtype=np.float32)
+        samples = np.frombuffer(message, dtype=np.float32)
+        if not hasattr(self, "_audio_log_count"):
+            self._audio_log_count = 0
+        self._audio_log_count += 1
+        if self._audio_log_count <= 5 or self._audio_log_count % 50 == 0:
+            rms = float(np.sqrt(np.mean(np.square(samples)))) if samples.size else 0.0
+            logging.info(
+                f"audio chunk #{self._audio_log_count}: n={samples.size} rms={rms:.6f}"
+            )
+        return samples
 
 
 def check_args(args):
